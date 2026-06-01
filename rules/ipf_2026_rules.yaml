@@ -1,0 +1,339 @@
+rule_version: "IPF Technical Rulebook 2026"
+source: "International Powerlifting Federation Technical Rulebook, effective 2026-03-01"
+
+auto_level_enum:
+  - 可自动判断
+  - 需要多角度
+  - 需要音频
+  - 只能人工判断
+
+common_thresholds:
+  knee_locked_angle_deg: 160
+  elbow_locked_angle_deg: 160
+  bar_downward_tolerance_m: 0.02
+  foot_movement_tolerance_m: 0.03
+  motionless_velocity_threshold_mps: 0.03
+  motionless_min_duration_s: 0.20
+  pose_confidence_min: 0.50
+  barbell_confidence_min: 0.60
+
+squat:
+  - id: SQ_START_SIGNAL
+    fail_reason: "未等待 Squat 口令就开始下蹲"
+    auto_level: "需要音频"
+    required_signals: ["Squat"]
+    required_features: ["audio_command_time", "knee_angle_series"]
+    logic: "if knee_unlock_time < squat_command_time then fail else pass"
+
+  - id: SQ_START_UPRIGHT
+    fail_reason: "起始姿势未达到基本直立"
+    auto_level: "可自动判断"
+    required_features: ["shoulder", "hip", "knee"]
+    logic: "if torso_angle_start outside calibrated_upright_range then fail_or_uncertain else pass"
+
+  - id: SQ_START_KNEES_LOCKED
+    fail_reason: "起始时膝盖未锁定"
+    auto_level: "可自动判断"
+    required_features: ["knee_angle_start"]
+    logic: "if min(left_knee_angle_start, right_knee_angle_start) < knee_locked_angle_deg then fail else pass"
+
+  - id: SQ_DEPTH
+    fail_reason: "深蹲深度不足"
+    auto_level: "可自动判断"
+    required_features: ["hip_y_bottom", "knee_y_bottom"]
+    logic: "if hip_joint_top_surface is not lower than knee_top_surface at bottom_frame then fail else pass"
+
+  - id: SQ_ONE_DESCENT
+    fail_reason: "出现不止一次下降尝试"
+    auto_level: "可自动判断"
+    required_features: ["hip_height_series", "bar_height_series"]
+    logic: "if multiple_descent_attempts_detected before ascent then fail else pass"
+
+  - id: SQ_DOUBLE_BOUNCE
+    fail_reason: "底部出现双弹"
+    auto_level: "可自动判断"
+    required_features: ["hip_height_series", "bar_height_series"]
+    logic: "if rebound_then_second_drop_near_bottom exceeds threshold then fail else pass"
+
+  - id: SQ_BAR_DOWNWARD_ASCENT
+    fail_reason: "上升过程中杠铃下沉"
+    auto_level: "可自动判断"
+    required_features: ["bar_height_series", "bottom_frame", "lockout_frame"]
+    logic: "if bar_height decreases during ascent by more than bar_downward_tolerance_m then fail else pass"
+
+  - id: SQ_FINISH_UPRIGHT
+    fail_reason: "完成时未站直"
+    auto_level: "可自动判断"
+    required_features: ["shoulder", "hip", "knee", "lockout_frame"]
+    logic: "if torso_angle_finish outside calibrated_upright_range then fail_or_uncertain else pass"
+
+  - id: SQ_FINISH_KNEES_LOCKED
+    fail_reason: "完成时膝盖未锁定"
+    auto_level: "可自动判断"
+    required_features: ["knee_angle_finish"]
+    logic: "if min(left_knee_angle_finish, right_knee_angle_finish) < knee_locked_angle_deg then fail else pass"
+
+  - id: SQ_RACK_SIGNAL
+    fail_reason: "未等待 Rack 口令就回架"
+    auto_level: "需要音频"
+    required_signals: ["Rack"]
+    required_features: ["audio_command_time", "bar_path"]
+    logic: "if rerack_movement_time < rack_command_time then fail else pass"
+
+  - id: SQ_FOOT_MOVEMENT
+    fail_reason: "脚步前后或横向移动"
+    auto_level: "需要多角度"
+    required_features: ["left_foot_series", "right_foot_series"]
+    logic: "if foot_translation_before_rack > foot_movement_tolerance_m then fail else pass"
+
+  - id: SQ_SPOTTER_CONTACT
+    fail_reason: "保护员接触杠铃或运动员并帮助完成动作"
+    auto_level: "只能人工判断"
+    required_features: ["spotter_detection", "contact_detection"]
+    logic: "system may flag possible_contact, final decision requires human review"
+
+  - id: SQ_ELBOW_LEG_CONTACT
+    fail_reason: "肘部或上臂支撑腿部"
+    auto_level: "需要多角度"
+    required_features: ["elbow", "upper_arm", "thigh_region"]
+    logic: "if elbow_or_upper_arm_contacts_leg and support_likely then uncertain_or_fail"
+
+  - id: SQ_DROP_BAR
+    fail_reason: "完成后丢杠或抛杠"
+    auto_level: "可自动判断"
+    required_features: ["bar_height_series", "wrist_bar_distance"]
+    logic: "if bar_dropped_after_completion and lifter_not_controlling_bar then fail else pass"
+
+bench_press:
+  - id: BP_SETUP_HEAD_CONTACT
+    fail_reason: "头部离开卧推凳"
+    auto_level: "需要多角度"
+    required_features: ["head", "bench_plane"]
+    logic: "if head_bench_distance exceeds threshold during lift then fail_or_uncertain"
+
+  - id: BP_SETUP_SHOULDER_CONTACT
+    fail_reason: "肩部离开卧推凳"
+    auto_level: "需要多角度"
+    required_features: ["shoulder", "bench_plane"]
+    logic: "if shoulder_bench_distance exceeds threshold during lift then fail_or_uncertain"
+
+  - id: BP_SETUP_BUTTOCK_CONTACT
+    fail_reason: "臀部离开卧推凳"
+    auto_level: "需要多角度"
+    required_features: ["hip_or_buttock_region", "bench_plane"]
+    logic: "if buttock_bench_distance exceeds threshold during lift then fail_or_uncertain"
+
+  - id: BP_FEET_FLAT
+    fail_reason: "脚没有保持平放"
+    auto_level: "需要多角度"
+    required_features: ["foot_keypoints", "floor_plane"]
+    logic: "if foot_not_flat_or_lifted during lift then fail_or_uncertain"
+
+  - id: BP_GRIP_THUMB_AROUND
+    fail_reason: "没有使用合规环握"
+    auto_level: "需要多角度"
+    required_features: ["hand_keypoints", "barbell"]
+    logic: "requires close hand view; otherwise uncertain"
+
+  - id: BP_GRIP_WIDTH_81CM
+    fail_reason: "握距超过 81 cm"
+    auto_level: "需要多角度"
+    required_features: ["index_finger_positions", "bar_81cm_marks"]
+    logic: "if index_finger_distance > 0.81m then fail else pass"
+
+  - id: BP_REVERSE_GRIP
+    fail_reason: "使用反握"
+    auto_level: "需要多角度"
+    required_features: ["hand_orientation"]
+    logic: "if reverse_grip_detected then fail else uncertain"
+
+  - id: BP_START_SIGNAL
+    fail_reason: "未等待 Start 口令就下放杠铃"
+    auto_level: "需要音频"
+    required_signals: ["Start"]
+    required_features: ["audio_command_time", "bar_height_series"]
+    logic: "if bar_descent_start_time < start_command_time then fail else pass"
+
+  - id: BP_START_LOCKED_ELBOWS
+    fail_reason: "Start 前肘部未锁定"
+    auto_level: "可自动判断"
+    required_features: ["elbow_angle_start"]
+    logic: "if min(left_elbow_angle_start, right_elbow_angle_start) < elbow_locked_angle_deg then fail else pass"
+
+  - id: BP_BAR_TO_CHEST_OR_ABDOMEN
+    fail_reason: "杠铃没有下放到胸部或腹部区域"
+    auto_level: "可自动判断"
+    required_features: ["barbell", "torso_region"]
+    logic: "if min_distance(barbell, chest_or_abdomen_region) > threshold then fail else pass"
+
+  - id: BP_BAR_NOT_TO_BELT
+    fail_reason: "杠铃触碰腰带"
+    auto_level: "需要多角度"
+    required_features: ["barbell", "belt_region"]
+    logic: "if barbell_contacts_belt then fail else pass_or_uncertain"
+
+  - id: BP_MOTIONLESS_ON_CHEST
+    fail_reason: "杠铃在胸腹处没有静止"
+    auto_level: "可自动判断"
+    required_features: ["bar_velocity_series"]
+    logic: "if duration(abs(bar_velocity) < motionless_velocity_threshold_mps) < motionless_min_duration_s then fail_or_uncertain else pass"
+
+  - id: BP_PRESS_SIGNAL
+    fail_reason: "未等待 Press 口令就上推"
+    auto_level: "需要音频"
+    required_signals: ["Press"]
+    required_features: ["audio_command_time", "bar_height_series"]
+    logic: "if bar_ascent_start_time < press_command_time then fail else pass"
+
+  - id: BP_ELBOW_DEPTH
+    fail_reason: "双侧肘部没有降到各自肩部上表面同高或更低"
+    auto_level: "需要多角度"
+    required_features: ["left_elbow", "right_elbow", "left_shoulder", "right_shoulder"]
+    logic: "if either_elbow_not_level_with_or_below_respective_shoulder_at_bottom then fail else pass"
+
+  - id: BP_NO_POSITION_CHANGE
+    fail_reason: "卧推姿势发生违规改变"
+    auto_level: "需要多角度"
+    required_features: ["head", "shoulder", "buttock", "bench_plane"]
+    logic: "if head_or_shoulder_or_buttock_raises_from_bench then fail_or_uncertain"
+
+  - id: BP_NO_HAND_LATERAL_MOVEMENT
+    fail_reason: "手在杠铃上横向移动"
+    auto_level: "需要多角度"
+    required_features: ["hand_positions", "barbell"]
+    logic: "if lateral_hand_shift_on_bar > threshold then fail else pass_or_uncertain"
+
+  - id: BP_NO_HEAVING_OR_SINKING
+    fail_reason: "杠铃静止后压入胸腹并借力"
+    auto_level: "只能人工判断"
+    required_features: ["bar_height_series", "chest_motion_series"]
+    logic: "system may flag sinking_after_pause, final decision requires human review"
+
+  - id: BP_NO_UPPER_BODY_THRUST
+    fail_reason: "使用上身顶杠启动上推"
+    auto_level: "只能人工判断"
+    required_features: ["chest_motion_series", "bar_height_series"]
+    logic: "system may flag upper_body_thrust, final decision requires human review"
+
+  - id: BP_NO_DOWNWARD_PRESS
+    fail_reason: "上推过程中杠铃下沉"
+    auto_level: "可自动判断"
+    required_features: ["bar_height_series", "press_command_time", "lockout_frame"]
+    logic: "if bar_height decreases during press by more than bar_downward_tolerance_m then fail else pass"
+
+  - id: BP_FINISH_LOCKED_ELBOWS
+    fail_reason: "完成时肘部未锁定"
+    auto_level: "可自动判断"
+    required_features: ["elbow_angle_finish"]
+    logic: "if min(left_elbow_angle_finish, right_elbow_angle_finish) < elbow_locked_angle_deg then fail else pass"
+
+  - id: BP_RACK_SIGNAL
+    fail_reason: "未等待 Rack 口令就回架"
+    auto_level: "需要音频"
+    required_signals: ["Rack"]
+    required_features: ["audio_command_time", "bar_path"]
+    logic: "if rerack_movement_time < rack_command_time then fail else pass"
+
+  - id: BP_SPOTTER_CONTACT
+    fail_reason: "保护员接触杠铃或运动员并帮助完成动作"
+    auto_level: "只能人工判断"
+    required_features: ["spotter_detection", "contact_detection"]
+    logic: "system may flag possible_contact, final decision requires human review"
+
+  - id: BP_FEET_TOUCH_BENCH_OR_SUPPORT
+    fail_reason: "脚接触卧推凳或卧推架"
+    auto_level: "需要多角度"
+    required_features: ["foot_keypoints", "bench_bbox", "rack_bbox"]
+    logic: "if foot_intersects_bench_or_rack_support then fail else pass_or_uncertain"
+
+  - id: BP_BAR_REST_SUPPORT_CONTACT
+    fail_reason: "杠铃故意接触支架来降低难度"
+    auto_level: "只能人工判断"
+    required_features: ["barbell", "rack_bbox"]
+    logic: "system may flag bar_rack_contact, final decision requires human review"
+
+deadlift:
+  - id: DL_ATTEMPT_START
+    fail_reason: "硬拉试举已经开始"
+    auto_level: "可自动判断"
+    required_features: ["bar_height_series"]
+    logic: "first frame where bar_height rises continuously is lift_start_frame"
+
+  - id: DL_NO_DOWNWARD_BEFORE_FINISH
+    fail_reason: "完成前杠铃下沉"
+    auto_level: "可自动判断"
+    required_features: ["bar_height_series", "lift_start_frame", "lockout_frame"]
+    logic: "if bar_height decreases before final_position by more than bar_downward_tolerance_m then fail else pass"
+
+  - id: DL_FINAL_ERECT
+    fail_reason: "完成时没有站直"
+    auto_level: "可自动判断"
+    required_features: ["shoulder", "hip", "knee"]
+    logic: "if torso_angle_finish outside calibrated_erect_range then fail_or_uncertain"
+
+  - id: DL_SHOULDERS_BACK
+    fail_reason: "完成时肩部没有后收"
+    auto_level: "需要多角度"
+    required_features: ["shoulder", "barbell_projection"]
+    logic: "if shoulder_not_back_at_finish then fail_or_uncertain"
+
+  - id: DL_DELTOID_BEHIND_BAR_PROJECTION
+    fail_reason: "三角肌前束没有位于杠铃垂直投影线后方"
+    auto_level: "需要多角度"
+    required_features: ["front_deltoid_position", "barbell_vertical_projection"]
+    logic: "if front_deltoid_not_behind_bar_projection then fail_or_uncertain"
+
+  - id: DL_FINISH_KNEES_LOCKED
+    fail_reason: "完成时膝盖未锁定"
+    auto_level: "可自动判断"
+    required_features: ["knee_angle_finish"]
+    logic: "if min(left_knee_angle_finish, right_knee_angle_finish) < knee_locked_angle_deg then fail else pass"
+
+  - id: DL_BAR_ON_THIGHS_SUPPORT
+    fail_reason: "杠铃被大腿支撑"
+    auto_level: "只能人工判断"
+    required_features: ["barbell", "thigh_region", "bar_velocity_series"]
+    logic: "system may flag possible_hitching_or_thigh_support, final decision requires human review"
+
+  - id: DL_BAR_EDGES_UP_THIGH
+    fail_reason: "杠铃只是沿大腿上移，不应自动判失败"
+    auto_level: "只能人工判断"
+    required_features: ["barbell", "thigh_region"]
+    logic: "if bar_contacts_thigh_without_support then do_not_fail_automatically"
+
+  - id: DL_FOOT_MOVEMENT
+    fail_reason: "Down 口令前脚步前后或横向移动"
+    auto_level: "需要多角度"
+    required_features: ["left_foot_series", "right_foot_series", "down_command_time"]
+    logic: "if foot_translation_before_down > foot_movement_tolerance_m then fail else pass"
+
+  - id: DL_DOWN_SIGNAL
+    fail_reason: "未等待 Down 口令就下放杠铃"
+    auto_level: "需要音频"
+    required_signals: ["Down"]
+    required_features: ["audio_command_time", "bar_height_series"]
+    logic: "if bar_descent_start_time < down_command_time then fail else pass"
+
+  - id: DL_CONTROLLED_RETURN
+    fail_reason: "没有用双手控制杠铃回到平台"
+    auto_level: "可自动判断"
+    required_features: ["wrist_bar_distance", "bar_height_series"]
+    logic: "if hands_release_bar_before_platform_contact then fail else pass"
+
+  - id: DL_RELEASE_FROM_PALMS
+    fail_reason: "杠铃回到平台前从手掌中释放"
+    auto_level: "可自动判断"
+    required_features: ["wrist_bar_distance", "bar_height_series"]
+    logic: "if bar_not_on_platform and both_hands_not_in_contact_with_bar then fail else pass"
+
+  - id: DL_FOOT_AFTER_DOWN_ALLOWED
+    fail_reason: "Down 后脚动不应判失败"
+    auto_level: "需要音频"
+    required_features: ["foot_series", "down_command_time"]
+    logic: "if foot_movement_time > down_command_time then ignore_foot_movement"
+
+  - id: DL_GENERAL_COMPLIANCE
+    fail_reason: "违反硬拉动作描述中的其他要求"
+    auto_level: "只能人工判断"
+    required_features: []
+    logic: "human_review_required"

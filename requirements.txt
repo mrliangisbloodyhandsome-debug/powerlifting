@@ -1,0 +1,10 @@
+numpy
+opencv-python
+mediapipe
+open3d
+torch
+torchvision
+mmengine
+mmcv-lite
+timm
+huggingface_hub

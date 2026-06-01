@@ -1,0 +1,41 @@
+.venv/
+.python312/
+.tools/
+
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+outputs/
+ground_test/outputs/
+src/outputs/
+unused_files/
+_backups/
+
+# Local/private datasets and media. Keep public repos free of unauthorized
+# videos, user images, and generated analysis artifacts.
+data/
+datasets/
+test_videos/
+ground_test/test_videos/
+src/data/raw_videos/
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+
+# Local secrets and credentials.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_rsa*
+credentials.json
+secrets.json
+
+.DS_Store
+Thumbs.db
