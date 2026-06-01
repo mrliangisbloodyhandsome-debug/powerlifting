@@ -101,7 +101,7 @@ outputs/
 
 其中 `report.json` 是主报告，包含最终决策、事件帧、规则结果、分支状态和所有产物路径。`result_landmarks_ground.json` 记录每个关键点采样到的场景 3D 点和地面坐标。`ground_plane.json` 记录 RANSAC 平面、地面坐标轴、候选点数和内点比例。
 
-## 我负责/实现的重点
+## 我实现的重点
 
 - 设计并实现 `ground_pose/` 地面参考坐标模块：几何后端、地面分割后端、RANSAC 平面拟合、地面坐标变换和可视化。
 - 实现 MediaPipe 全视频姿态提取，并明确只用 2D landmark 像素索引 MoGe/Metric3D 场景点，不混用 `pose_world_landmarks`。
