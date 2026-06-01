@@ -6,7 +6,7 @@
 
 ## 项目截图
 
-![合成演示图](docs/assets/demo-output.svg)
+![合成演示图](docs/assets/demo-output.png)
 
 上图是公开 README 使用的合成演示图，不含真实运动员视频或未授权数据。实际运行后，系统会在 `outputs/runs/<run_id>/` 生成 `visualization.png`、`report.json` 和相关中间结果。
 
